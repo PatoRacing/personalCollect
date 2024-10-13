@@ -8,7 +8,7 @@
             <x-application-logo />
         </a>
     </div>
-    <h1 class="text-center font-black text-4xl mt-10">
+    <h1 class="text-center font-bold text-2xl mt-10">
         Recuperá tu acceso a la plataforma
     </h1>
 @endsection
@@ -41,7 +41,7 @@
 
         </div>
 
-        <x-primary-button class="pt-3 pb-3 w-full justify-center bg-blue-800 hover:bg-blue-900">
+        <x-primary-button class="w-full py-2 px-4 mt-2 font-bold text-white bg-blue-800 hover:bg-blue-950">
             {{ __('Enviar instrucciones') }}
         </x-primary-button>
     </form>

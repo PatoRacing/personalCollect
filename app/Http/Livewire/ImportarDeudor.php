@@ -15,6 +15,6 @@ class ImportarDeudor extends Component
 
     public function render()
     {
-        return view('livewire.importar-deudor');
+        return view('livewire.clientes.importar-deudor');
     }
 }

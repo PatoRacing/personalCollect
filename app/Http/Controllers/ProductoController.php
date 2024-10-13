@@ -18,11 +18,7 @@ class ProductoController extends Controller
 
     public function create()
     {
-        $clientes = Cliente::all();
-
-        return view('productos.crear-producto',[
-            'clientes'=>$clientes
-        ]);
+        return view('productos.crear-producto');
     }
 
     public function update(Producto $producto)
@@ -39,7 +35,7 @@ class ProductoController extends Controller
     {
         $cliente = Operacion::where('cliente_id', $producto->cliente_id)->first();
         $operaciones = Operacion::where('producto_id', $producto->id)->get();
-        $politicas = Politica::where('producto_id', $producto->id)->paginate(12);
+        $politicas = Politica::where('producto_id', $producto->id)->get();
         $cantidadOperaciones = $operaciones->count();
         $operacionesActivas = $operaciones->where('situacion', 1)->count();
         $sumaOperacionesActivas = $operaciones->where('situacion', 1)->sum('deuda_capital');

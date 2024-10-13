@@ -17,14 +17,7 @@ class UsuarioController extends Controller
     
     public function index()
     {
-        $usuarios = User::orderBy('created_at', 'desc')->paginate(10);
-        foreach ($usuarios as $usuario) {
-            $usuario->fecha_de_ingreso_formateada = Carbon::parse($usuario->fecha_de_ingreso)->format('d/m/Y');
-        }
-
-        return view('usuarios.index', [
-            'usuarios'=>$usuarios
-        ]);
+        return view('usuarios.usuarios');
     }
 
     /**
@@ -58,7 +51,7 @@ class UsuarioController extends Controller
         $usuario = User::findOrFail($request->id);
         $usuario->update(array_merge($request->all(), ['usuario_ultima_modificacion_id' => $usuario_autenticado_id]));
 
-        return redirect('usuario')->with('message', 'Usuario actualizado correctamente');
+        return redirect('usuarios')->with('message', 'Usuario actualizado correctamente');
     }
 
     /**

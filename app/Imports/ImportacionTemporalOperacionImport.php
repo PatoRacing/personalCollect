@@ -41,7 +41,7 @@ class ImportacionTemporalOperacionImport implements ToModel, WithHeadingRow
             return null;
         }
 
-        //Si no hay operacion la instancia se omite
+        //Si no hay deuda capital la instancia se omite
         $deuda_capital = $row['deuda_capital'];
         if(!$deuda_capital) {
             $this->deudaCapitalOmitidas++;

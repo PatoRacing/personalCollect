@@ -16,6 +16,6 @@ class ModalImportacion extends Component
 
     public function render()
     {
-        return view('livewire.modal-importacion');
+        return view('livewire.clientes.modal-importacion');
     }
 }

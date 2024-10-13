@@ -14,9 +14,14 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class PropuestaController extends Controller
 {
-    public function index(Propuesta $propuesta)
+    public function index()
     {
         return view('propuestas.propuestas');
+    }
+
+    public function propuestaManual()
+    {
+        return view('propuestas.propuesta-manual');
     }
     
 }

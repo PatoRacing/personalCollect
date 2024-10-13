@@ -12,7 +12,6 @@ use Livewire\Component;
 class CrearProducto extends Component
 {
     public $nombre;
-    public $clientes;
     public $cliente_id;
     public $honorarios;
     public $comision_cliente;
@@ -33,9 +32,8 @@ class CrearProducto extends Component
             'cliente_id'=> $datos['cliente_id'],
             'honorarios'=> $datos['honorarios'],
             'comision_cliente'=> $datos['comision_cliente'],
-            'acepta_cuotas_variables'=> $datos['acepta_cuotas_variables'],
-            'usuario_ultima_modificacion_id'=> $datos['comision_cliente'],
             'estado'=> 1,
+            'acepta_cuotas_variables'=> $datos['acepta_cuotas_variables'],
             'usuario_ultima_modificacion_id'=>auth()->id(),
         ]);
         return redirect('productos')->with('message', 'Producto agregado correctamente');
@@ -43,6 +41,9 @@ class CrearProducto extends Component
 
     public function render()
     {
-        return view('livewire.crear-producto');
+        $clientes = Cliente::all();
+        return view('livewire.productos.crear-producto',[
+            'clientes'=>$clientes
+        ]);
     }
 }

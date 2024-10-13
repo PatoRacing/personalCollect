@@ -8,7 +8,7 @@
             <x-application-logo />
         </a>
     </div>
-    <h1 class="text-center font-black text-4xl mt-10">
+    <h1 class="text-center font-bold text-2xl mt-10">
         Ingresá tu nueva contraseña
     </h1>
 @endsection
@@ -45,8 +45,8 @@
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
         </div>
 
-        <div class="w-full pt-3 pb-3 justify-center">
-            <x-primary-button>
+        <div>
+            <x-primary-button class="w-full py-2 px-4 mt-2 font-bold text-white bg-blue-800 hover:bg-blue-950">
                 {{ __('Restablecer Password') }}
             </x-primary-button>
         </div>

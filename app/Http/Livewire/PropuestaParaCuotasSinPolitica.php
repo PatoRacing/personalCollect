@@ -16,6 +16,7 @@ class PropuestaParaCuotasSinPolitica extends Component
     public $fecha_pago_anticipo;
     public $cantidad_de_cuotas_uno;
     public $monto_de_cuotas_uno;
+    public $monto_total;
     public $fecha_pago_cuota;
     public $total_acp;
     public $honorarios;
@@ -32,7 +33,7 @@ class PropuestaParaCuotasSinPolitica extends Component
 
     protected $rules = [
         'monto_ofrecido'=> 'required|numeric',
-        'anticipo'=> 'required|numeric|lt:monto_ofrecido',
+        'anticipo'=> 'required|numeric|lt:monto_ofrecido|regex:/^[0-9]{1,}(000)$/',
         'cantidad_de_cuotas_uno'=> 'required|numeric|integer',
     ];
 
@@ -56,8 +57,11 @@ class PropuestaParaCuotasSinPolitica extends Component
         $this->honorarios = $this->monto_ofrecido - $this->total_acp;
         //Le descuento el anticipo al monto ofrecido
         $montoSinAnticipo = $this->monto_ofrecido - $this->anticipo;
-        //Obtengo el monto de la cuota descontando el anticipo
-        $this->monto_de_cuotas_uno = $montoSinAnticipo / $this->cantidad_de_cuotas_uno;
+        //Obtengo el monto de la cuota descontando el anticipo y redondeo
+        $montoDeCuota = $montoSinAnticipo / $this->cantidad_de_cuotas_uno;
+        $this->monto_de_cuotas_uno = ceil($montoDeCuota / 1000) * 1000;
+        //Monto total redondeado
+        $this->monto_total = ($this->monto_de_cuotas_uno * $this->cantidad_de_cuotas_uno) + $this->anticipo;
         if($this->monto_ofrecido < $this->minimoAPagar ) {
             $this->formulario = false;
             $this->montoNoPermitido = true;
@@ -100,7 +104,7 @@ class PropuestaParaCuotasSinPolitica extends Component
         $propuesta = new Propuesta();
         $propuesta->deudor_id = $this->operacion->deudor_id;
         $propuesta->operacion_id = $this->operacion->id;
-        $propuesta->monto_ofrecido = $this->monto_ofrecido;
+        $propuesta->monto_ofrecido = $this->monto_total;
         $propuesta->tipo_de_propuesta = 2;
         if($this->anticipo == 0 || $this->anticipo === '') {
             $propuesta->anticipo = null; 
@@ -122,14 +126,14 @@ class PropuestaParaCuotasSinPolitica extends Component
         $propuesta->observaciones = $this->observaciones;
         $propuesta->usuario_ultima_modificacion_id = $this->usuario_ultima_modificacion_id;
         $propuesta->save();
-        return redirect()->route('propuesta', ['operacion' => $this->operacion->id])->with('message', 'Propuesta generada correctamente');
+        return redirect()->route('nueva.gestion', ['operacion' => $this->operacion->id])->with('message', 'Propuesta generada correctamente');
     }
 
     public function render()
     {
         $usuarios = User::all();
 
-        return view('livewire.propuesta-para-cuotas-sin-politica',[
+        return view('livewire.operaciones.propuesta-para-cuotas-sin-politica',[
             'usuarios'=>$usuarios
         ]);
     }

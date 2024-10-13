@@ -24,6 +24,254 @@ class AcuerdoController extends Controller
     {
         return view('acuerdos.acuerdos');
     }
+
+    public function importarAcuerdos()
+    {
+        return view('acuerdos.importar-acuerdos');
+    }
+
+    public function almacenarAcuerdos(Request $request)
+    {
+        $request->validate([
+            'importar'=> 'required|mimes:xls,xlsx|max:2048'
+        ]);
+        try{
+            DB::beginTransaction();
+            $excel = $request->file('importar');
+            $inicioGeneracionAcuerdos = microtime(true);
+            $encabezadosEsperados = ['propuesta_id', 'estado'];
+            $encabezadosExcel = (new HeadingRowImport())->toArray($excel)[0];
+            $encabezadosExcel = $encabezadosExcel[0];
+            if ($encabezadosEsperados !== $encabezadosExcel) {
+                return back()->withErrors(['error' => 'Existe un error en un encabezado del archivo que estás importando.']);
+            }
+            //inicio de la importacion
+            ini_set('max_execution_time', 1800);//Maxima duracion: 30 minutos
+            $inicioImportacion = microtime(true);
+            $acuerdosTemporales = new AcuerdosTemporalesImport;
+            Excel::import($acuerdosTemporales, $excel, 500);
+            $acuerdosTemp = AcuerdoTemporal::all();
+            $acuerdosActivos = Acuerdo::pluck('propuesta_id')->toArray();
+            if (!empty($acuerdosActivos)) {
+                foreach ($acuerdosTemp as $acuerdoTemp) {
+                    if (in_array($acuerdoTemp->propuesta_id, $acuerdosActivos)) {
+                        DB::rollBack();
+                        return back()->withErrors(['error' => 'Existen acuerdos activos para algunas propuestas que estas importando.']);
+                    }
+                }
+            }
+            $propuestasRechazadas = 0;
+            $propuestasAcuerdoPago = 0;
+            $acuerdosGenerados = 0;
+            foreach ($acuerdosTemp as $acuerdoTemp) {
+                if ($acuerdoTemp->estado === 2) {
+                    $propuesta = Propuesta::where('id', $acuerdoTemp->propuesta_id)->update(['estado' => 'Rechazada']);
+                    $propuestasRechazadas++;
+                } elseif ($acuerdoTemp->estado === 1) {
+                    $propuesta = Propuesta::where('id', $acuerdoTemp->propuesta_id)->update(['estado' => 'Acuerdo de Pago']);
+                    $propuestasAcuerdoPago++;
+                    $acuerdo = new Acuerdo([
+                        'propuesta_id' => $acuerdoTemp->propuesta_id,
+                        'estado'=> 1, //1- Vigente
+                        'usuario_ultima_modificacion_id' => auth()->user()->id,
+                        'responsable'=>$acuerdoTemp->propuesta->operacionId->usuario_asignado_id
+                    ]);
+                    $html = view('pdf.acuerdo-de-pago', ['acuerdo' => $acuerdo])->render();
+                    $dompdf = new Dompdf();
+                    $dompdf->loadHtml($html);
+                    $dompdf->render();
+                    $pdfContenido = $dompdf->output();
+                    $nombreArchivo = 'acuerdo_' . $acuerdoTemp->propuesta_id . '.pdf';
+                    $rutaArchivo = public_path('storage/acuerdos/' . $nombreArchivo);
+                    file_put_contents($rutaArchivo, $pdfContenido);
+                    $acuerdo->acuerdos_de_pago_pdf = $nombreArchivo;
+                    $acuerdo->save();
+                    $acuerdosGenerados++;
+                    if($acuerdo->propuesta->tipo_de_propuesta === 1) {
+                        $cancelacion = new Pago([
+                            'acuerdo_id' => $acuerdo->id,
+                            'responsable_id' => $acuerdo->responsable,
+                            'estado' => 1, 
+                            'concepto_cuota' => 'Cancelación',
+                            'monto_acordado' => $acuerdo->propuesta->monto_ofrecido,
+                            'vencimiento_cuota' => $acuerdo->propuesta->fecha_pago_cuota,
+                            'nro_cuota' => 1,
+                            'usuario_ultima_modificacion_id' => auth()->user()->id,
+                        ]);
+                        $cancelacion->save();
+                    } elseif($acuerdo->propuesta->tipo_de_propuesta === 2) {
+                        $cantidadPagos = $acuerdo->propuesta->cantidad_de_cuotas_uno;
+                        $fechaPagoInicial = Carbon::parse($acuerdo->propuesta->fecha_pago_cuota);
+                        for ($i = 1; $i <= $cantidadPagos; $i++) {
+                            $monto = $acuerdo->propuesta->monto_de_cuotas_uno ?? 0;
+                            $vencimiento = $fechaPagoInicial->clone()->addDays(30 * ($i - 1));
+                            $pago = new Pago([
+                                'acuerdo_id' => $acuerdo->id,
+                                'responsable_id' => $acuerdo->responsable,
+                                'estado' => 1,
+                                'concepto_cuota' => 'Cuota', 
+                                'monto_acordado' => $monto,
+                                'vencimiento_cuota' => $vencimiento,
+                                'nro_cuota' => $i,
+                                'usuario_ultima_modificacion_id' => auth()->user()->id,
+                            ]);
+                            $pago->save();
+                        }
+                        if($acuerdo->propuesta->anticipo) {
+                            $anticipo = new Pago([
+                                'acuerdo_id' => $acuerdo->id,
+                                'responsable_id' => $acuerdo->responsable,
+                                'estado' => 1, 
+                                'concepto_cuota' => 'Anticipo', 
+                                'monto_acordado' => $acuerdo->propuesta->anticipo,
+                                'vencimiento_cuota' => $acuerdo->propuesta->fecha_pago_anticipo,
+                                'nro_cuota' => 0,
+                                'usuario_ultima_modificacion_id' => auth()->user()->id,
+                            ]);
+                            $anticipo->save();
+                        }
+                    } elseif($acuerdo->propuesta->tipo_de_propuesta === 3) {
+                        $cantidadPagos = $acuerdo->propuesta->cantidad_de_cuotas_uno;
+                        $fechaPagoInicial = Carbon::parse($acuerdo->propuesta->fecha_pago_cuota);
+                        for ($i = 1; $i <= $cantidadPagos; $i++) {
+                            $monto = $acuerdo->propuesta->monto_de_cuotas_uno ?? 0;
+                            $vencimiento = $fechaPagoInicial->clone()->addDays(30 * ($i - 1));
+                            $pago = new Pago([
+                                'acuerdo_id' => $acuerdo->id,
+                                'responsable_id' => $acuerdo->responsable,
+                                'estado' => 1,
+                                'concepto_cuota' => 'Cuota', 
+                                'monto_acordado' => $monto,
+                                'vencimiento_cuota' => $vencimiento,
+                                'nro_cuota' => $i,
+                                'usuario_ultima_modificacion_id' => auth()->user()->id,
+                            ]);
+                            $pago->save();
+                        }
+                        if($acuerdo->propuesta->anticipo) {
+                            $anticipo = new Pago([
+                                'acuerdo_id' => $acuerdo->id,
+                                'responsable_id' => $acuerdo->responsable,
+                                'estado' => 1,
+                                'concepto_cuota' => 'Anticipo', 
+                                'monto_acordado' => $acuerdo->propuesta->anticipo,
+                                'vencimiento_cuota' => $acuerdo->propuesta->fecha_pago_anticipo,
+                                'nro_cuota' => 0,
+                                'usuario_ultima_modificacion_id' => auth()->user()->id,
+                            ]);
+                            $anticipo->save();
+                        }
+                    } elseif($acuerdo->propuesta->tipo_de_propuesta === 4) {
+                        $cantidadCuotasUno = $acuerdo->propuesta->cantidad_de_cuotas_uno;
+                        $cantidadCuotasDos = $acuerdo->propuesta->cantidad_de_cuotas_dos;
+                        $ultimaFechaCuotaUno = null;
+                        for ($i = 1; $i <= $cantidadCuotasUno; $i++) {
+                            $monto = $acuerdo->propuesta->monto_de_cuotas_uno ?? 0;
+                            $ultimaFechaCuotaUno = Carbon::parse($acuerdo->propuesta->fecha_pago_cuota)->addDays(30 * ($i - 1));
+                            $vencimiento = $ultimaFechaCuotaUno;
+                            $pago = new Pago([
+                                'acuerdo_id' => $acuerdo->id,
+                                'responsable_id' => $acuerdo->responsable,
+                                'estado' => 1,
+                                'concepto_cuota' => 'Cuota', 
+                                'monto_acordado' => $monto,
+                                'vencimiento_cuota' => $vencimiento,
+                                'nro_cuota' => $i, 
+                                'usuario_ultima_modificacion_id' => auth()->user()->id,
+                            ]);
+                            $pago->save();
+                        }
+                        $primerFechaCuotaDos = $ultimaFechaCuotaUno->clone()->addDays(30);
+                        for ($i = 1; $i <= $cantidadCuotasDos; $i++) {
+                            $monto = $acuerdo->propuesta->monto_de_cuotas_dos ?? 0;
+                            $vencimiento = $primerFechaCuotaDos->clone()->addDays(30 * ($i - 1));
+                            $pago = new Pago([
+                                'acuerdo_id' => $acuerdo->id,
+                                'responsable_id' => $acuerdo->responsable,
+                                'estado' => 1,
+                                'concepto_cuota' => 'Cuota', 
+                                'monto_acordado' => $monto,
+                                'vencimiento_cuota' => $vencimiento,
+                                'nro_cuota' => $i + ($cantidadCuotasUno),
+                                'usuario_ultima_modificacion_id' => auth()->user()->id,
+                            ]);
+                            $pago->save();
+                        }
+                        $ultimaFechaCuotaDos = Pago::where('acuerdo_id', $acuerdo->id)
+                                                ->where('concepto_cuota', 'Cuota')
+                                                ->orderBy('vencimiento_cuota', 'desc')
+                                                ->first()->vencimiento;
+
+                        if ($acuerdo->propuesta->cantidad_de_cuotas_tres) {
+                            $cantidadCuotasTres = $acuerdo->propuesta->cantidad_de_cuotas_tres;
+                            $primerFechaCuotaTres = Carbon::parse($ultimaFechaCuotaDos)->addDays(30);
+                            for ($i = 1; $i <= $cantidadCuotasTres; $i++) {
+                                $monto = $acuerdo->propuesta->monto_de_cuotas_tres ?? 0;
+                                $vencimiento = Carbon::parse($primerFechaCuotaTres)->addDays(30 * ($i - 1));
+                                $pago = new Pago([
+                                    'acuerdo_id' => $acuerdo->id,
+                                    'responsable_id' => $acuerdo->responsable,
+                                    'estado' => 1,
+                                    'concepto_cuota' => 'Cuota', 
+                                    'monto_acordado' => $monto,
+                                    'vencimiento_cuota' => $vencimiento,
+                                    'nro_cuota' => $i + ($cantidadCuotasUno) + ($cantidadCuotasDos),
+                                    'usuario_ultima_modificacion_id' => auth()->user()->id,
+                                ]);
+                                $pago->save();
+                            }
+                        }
+                        if($acuerdo->propuesta->anticipo) {
+                            $anticipo = new Pago([
+                                'acuerdo_id' => $acuerdo->id,
+                                'responsable_id' => $acuerdo->responsable,
+                                'estado' => 1,
+                                'concepto_cuota' => 'Anticipo', 
+                                'monto_acordado' => $acuerdo->propuesta->anticipo,
+                                'vencimiento_cuota' => $acuerdo->propuesta->fecha_pago_anticipo,
+                                'nro_cuota' => 0,
+                                'usuario_ultima_modificacion_id' => auth()->user()->id,
+                            ]);
+                            $anticipo->save();
+                        }
+                    }
+                }          
+            }
+            $finImportacion = microtime(true);
+            $duracionImportacion = $finImportacion - $inicioImportacion;
+            $tiempoMaximoPermitido = 1700;
+            if($duracionImportacion > $tiempoMaximoPermitido) {
+                DB::rollBack();
+                return back()->withErrors(['error' => "Superaste el máximo de tiempo almacenar nuevos acuerdos"]);
+            }
+            //Mensajes
+            $mensajes = [];
+            if($propuestasRechazadas === 1) {
+                $mensajes[] = "Una propuesta fue rechaza y cambio su estado a 'Rechazada'";
+            } elseif ($propuestasRechazadas > 1) {
+                $mensajes[] = "Se rechazaron {$propuestasRechazadas} propuestas y cambiaron su estado a 'Rechazada'";
+            }
+            if($propuestasAcuerdoPago === 1) {
+                $mensajes[] = "Una propuesta cambio su estado a 'Acuerdo de Pago'";
+            } elseif ($propuestasAcuerdoPago > 1) {
+                $mensajes[] = "{$propuestasAcuerdoPago} propuestas cambiaron su estado a 'Acuerdo de Pago'";
+            }
+            if($acuerdosGenerados === 1) {
+                $mensajes[] = "Se generó un nuevo Acuerdo de Pago";
+            } elseif ($acuerdosGenerados > 1) {
+                $mensajes[] = "Se generaron {$acuerdosGenerados} nuevos Acuerdos de Pago";
+            }
+
+            DB::commit();
+            AcuerdoTemporal::truncate();
+            return redirect()->route('acuerdos')->with('message', implode('<br>', $mensajes));
+        } catch(\Exception $e) {
+                DB::rollBack();
+                $errorImportacion = 'Ocurrió un error inesperado. (' . $e->getMessage() . ')';
+                return back()->withErrors(['error' => $errorImportacion]);
+        }
+        return redirect()->route('acuerdos')->with('message', 'Acuerdos generados correctamente');
+    }
     
     public function pagos()
     {
@@ -119,253 +367,7 @@ class AcuerdoController extends Controller
         ]);
     }
 
-    public function importar()
-    {
-        return view('acuerdos.importar-acuerdos');
-    }
-
-    public function almacenar(Request $request)
-    {
-        $request->validate([
-            'importar'=> 'required|mimes:xls,xlsx|max:2048'
-        ]);
-        try{
-            DB::beginTransaction();
-            $excel = $request->file('importar');
-            $inicioGeneracionAcuerdos = microtime(true);
-            $encabezadosEsperados = ['propuesta_id', 'estado'];
-            $encabezadosExcel = (new HeadingRowImport())->toArray($excel)[0];
-            $encabezadosExcel = $encabezadosExcel[0];
-            if ($encabezadosEsperados !== $encabezadosExcel) {
-                return back()->withErrors(['error' => 'Existe un error en un encabezado del archivo que estás importando.']);
-            }
-            //inicio de la importacion
-            ini_set('max_execution_time', 1800);//Maxima duracion: 30 minutos
-            $inicioImportacion = microtime(true);
-            $acuerdosTemporales = new AcuerdosTemporalesImport;
-            Excel::import($acuerdosTemporales, $excel, 500);
-            $acuerdosTemp = AcuerdoTemporal::all();
-            $acuerdosActivos = Acuerdo::pluck('propuesta_id')->toArray();
-            if (!empty($acuerdosActivos)) {
-                foreach ($acuerdosTemp as $acuerdoTemp) {
-                    if (in_array($acuerdoTemp->propuesta_id, $acuerdosActivos)) {
-                        DB::rollBack();
-                        return back()->withErrors(['error' => 'Existen acuerdos activos para algunas propuestas que estas importando.']);
-                    }
-                }
-            }
-            $propuestasRechazadas = 0;
-            $propuestasAcuerdoPago = 0;
-            $acuerdosGenerados = 0;
-            foreach ($acuerdosTemp as $acuerdoTemp) {
-                if ($acuerdoTemp->estado === 2) {
-                    $propuesta = Propuesta::where('id', $acuerdoTemp->propuesta_id)->update(['estado' => 'Rechazada']);
-                    $propuestasRechazadas++;
-                } elseif ($acuerdoTemp->estado === 1) {
-                    $propuesta = Propuesta::where('id', $acuerdoTemp->propuesta_id)->update(['estado' => 'Acuerdo de Pago']);
-                    $propuestasAcuerdoPago++;
-                    $acuerdo = new Acuerdo([
-                        'propuesta_id' => $acuerdoTemp->propuesta_id,
-                        'estado'=> 1, //1- Vigente
-                        'usuario_ultima_modificacion_id' => auth()->user()->id,
-                        'responsable'=>$acuerdoTemp->propuesta->usuario_ultima_modificacion_id
-                    ]);
-                    $html = view('pdf.acuerdo-de-pago', ['acuerdo' => $acuerdo])->render();
-                    $dompdf = new Dompdf();
-                    $dompdf->loadHtml($html);
-                    $dompdf->render();
-                    $pdfContenido = $dompdf->output();
-                    $nombreArchivo = 'acuerdo_' . $acuerdoTemp->propuesta_id . '.pdf';
-                    $rutaArchivo = public_path('storage/acuerdos/' . $nombreArchivo);
-                    file_put_contents($rutaArchivo, $pdfContenido);
-                    $acuerdo->acuerdos_de_pago_pdf = $nombreArchivo;
-                    $acuerdo->save();
-                    $acuerdosGenerados++;
-                    if($acuerdo->propuesta->tipo_de_propuesta === 1) {
-                        $cancelacion = new Pago([
-                            'acuerdo_id' => $acuerdo->id,
-                            'concepto' => 'Cancelación',
-                            'monto' => $acuerdo->propuesta->monto_ofrecido,
-                            'vencimiento' => $acuerdo->propuesta->fecha_pago_cuota,
-                            'estado' => 1, //
-                            'comprobante' => '',
-                            'usuario_ultima_modificacion_id' => auth()->user()->id,
-                            'nro_cuota' => 1,
-                        ]);
-                        $cancelacion->save();
-                    } elseif($acuerdo->propuesta->tipo_de_propuesta === 2) {
-                        $cantidadPagos = $acuerdo->propuesta->cantidad_de_cuotas_uno;
-                        $fechaPagoInicial = Carbon::parse($acuerdo->propuesta->fecha_pago_cuota);
-                        for ($i = 1; $i <= $cantidadPagos; $i++) {
-                            $monto = $acuerdo->propuesta->monto_de_cuotas_uno ?? 0;
-                            $vencimiento = $fechaPagoInicial->clone()->addDays(30 * ($i - 1));
-                            $pago = new Pago([
-                                'acuerdo_id' => $acuerdo->id,
-                                'concepto' => 'Cuota', 
-                                'monto' => $monto,
-                                'vencimiento' => $vencimiento,
-                                'estado' => 1, 
-                                'comprobante' => '',
-                                'usuario_ultima_modificacion_id' => auth()->user()->id,
-                                'nro_cuota' => $i, 
-                            ]);
-                            $pago->save();
-                        }
-                        if($acuerdo->propuesta->anticipo) {
-                            $anticipo = new Pago([
-                                'acuerdo_id' => $acuerdo->id,
-                                'concepto' => 'Anticipo', 
-                                'monto' => $acuerdo->propuesta->anticipo,
-                                'vencimiento' => $acuerdo->propuesta->fecha_pago_anticipo,
-                                'estado' => 1, 
-                                'comprobante' => '',
-                                'usuario_ultima_modificacion_id' => auth()->user()->id,
-                                'nro_cuota' => 0,
-                            ]);
-                            $anticipo->save();
-                        }
-                    } elseif($acuerdo->propuesta->tipo_de_propuesta === 3) {
-                        $cantidadPagos = $acuerdo->propuesta->cantidad_de_cuotas_uno;
-                        $fechaPagoInicial = Carbon::parse($acuerdo->propuesta->fecha_pago_cuota);
-                        for ($i = 1; $i <= $cantidadPagos; $i++) {
-                            $monto = $acuerdo->propuesta->monto_de_cuotas_uno ?? 0;
-                            $vencimiento = $fechaPagoInicial->clone()->addDays(30 * ($i - 1));
-                            $pago = new Pago([
-                                'acuerdo_id' => $acuerdo->id,
-                                'concepto' => 'Cuota', 
-                                'monto' => $monto,
-                                'vencimiento' => $vencimiento,
-                                'estado' => 1, 
-                                'comprobante' => '',
-                                'usuario_ultima_modificacion_id' => auth()->user()->id,
-                                'nro_cuota' => $i,
-                            ]);
-                            $pago->save();
-                        }
-                        if($acuerdo->propuesta->anticipo) {
-                            $anticipo = new Pago([
-                                'acuerdo_id' => $acuerdo->id,
-                                'concepto' => 'Anticipo', 
-                                'monto' => $acuerdo->propuesta->anticipo,
-                                'vencimiento' => $acuerdo->propuesta->fecha_pago_anticipo,
-                                'estado' => 1, 
-                                'comprobante' => '',
-                                'usuario_ultima_modificacion_id' => auth()->user()->id,
-                                'nro_cuota' => 0,
-                            ]);
-                            $anticipo->save();
-                        }
-                    } elseif($acuerdo->propuesta->tipo_de_propuesta === 4) {
-                        $cantidadCuotasUno = $acuerdo->propuesta->cantidad_de_cuotas_uno;
-                        $cantidadCuotasDos = $acuerdo->propuesta->cantidad_de_cuotas_dos;
-                        $ultimaFechaCuotaUno = null;
-                        for ($i = 1; $i <= $cantidadCuotasUno; $i++) {
-                            $monto = $acuerdo->propuesta->monto_de_cuotas_uno ?? 0;
-                            $ultimaFechaCuotaUno = Carbon::parse($acuerdo->propuesta->fecha_pago_cuota)->addDays(30 * ($i - 1));
-                            $vencimiento = $ultimaFechaCuotaUno;
-                            $pago = new Pago([
-                                'acuerdo_id' => $acuerdo->id,
-                                'concepto' => 'Cuota', 
-                                'monto' => $monto,
-                                'vencimiento' => $vencimiento,
-                                'estado' => 1, 
-                                'comprobante' => '',
-                                'usuario_ultima_modificacion_id' => auth()->user()->id,
-                                'nro_cuota' => $i, 
-                            ]);
-                            $pago->save();
-                        }
-                        $primerFechaCuotaDos = $ultimaFechaCuotaUno->clone()->addDays(30);
-                        for ($i = 1; $i <= $cantidadCuotasDos; $i++) {
-                            $monto = $acuerdo->propuesta->monto_de_cuotas_dos ?? 0;
-                            $vencimiento = $primerFechaCuotaDos->clone()->addDays(30 * ($i - 1));
-                            $pago = new Pago([
-                                'acuerdo_id' => $acuerdo->id,
-                                'concepto' => 'Cuota', 
-                                'monto' => $monto,
-                                'vencimiento' => $vencimiento,
-                                'estado' => 1, 
-                                'comprobante' => '',
-                                'usuario_ultima_modificacion_id' => auth()->user()->id,
-                                'nro_cuota' => $i + ($cantidadCuotasUno), 
-                            ]);
-                            $pago->save();
-                        }
-                        $ultimaFechaCuotaDos = Pago::where('acuerdo_id', $acuerdo->id)
-                                                ->where('concepto', 'Cuota')
-                                                ->orderBy('vencimiento', 'desc')
-                                                ->first()->vencimiento;
-
-                        if ($acuerdo->propuesta->cantidad_de_cuotas_tres) {
-                            $cantidadCuotasTres = $acuerdo->propuesta->cantidad_de_cuotas_tres;
-                            $primerFechaCuotaTres = Carbon::parse($ultimaFechaCuotaDos)->addDays(30);
-                            for ($i = 1; $i <= $cantidadCuotasTres; $i++) {
-                                $monto = $acuerdo->propuesta->monto_de_cuotas_tres ?? 0;
-                                $vencimiento = Carbon::parse($primerFechaCuotaTres)->addDays(30 * ($i - 1));
-                                $pago = new Pago([
-                                    'acuerdo_id' => $acuerdo->id,
-                                    'concepto' => 'Cuota', 
-                                    'monto' => $monto,
-                                    'vencimiento' => $vencimiento,
-                                    'estado' => 1, 
-                                    'comprobante' => '',
-                                    'usuario_ultima_modificacion_id' => auth()->user()->id,
-                                    'nro_cuota' => $i + ($cantidadCuotasUno) + ($cantidadCuotasDos)
-                                ]);
-                                $pago->save();
-                            }
-                        }
-                        if($acuerdo->propuesta->anticipo) {
-                            $anticipo = new Pago([
-                                'acuerdo_id' => $acuerdo->id,
-                                'concepto' => 'Anticipo', 
-                                'monto' => $acuerdo->propuesta->anticipo,
-                                'vencimiento' => $acuerdo->propuesta->fecha_pago_anticipo,
-                                'estado' => 1, 
-                                'comprobante' => '',
-                                'usuario_ultima_modificacion_id' => auth()->user()->id,
-                                'nro_cuota' => 0,
-                            ]);
-                            $anticipo->save();
-                        }
-                    }
-                }          
-            }
-            $finImportacion = microtime(true);
-            $duracionImportacion = $finImportacion - $inicioImportacion;
-            $tiempoMaximoPermitido = 1700;
-            if($duracionImportacion > $tiempoMaximoPermitido) {
-                DB::rollBack();
-                return back()->withErrors(['error' => "Superaste el máximo de tiempo almacenar nuevos acuerdos"]);
-            }
-            //Mensajes
-            $mensajes = [];
-            if($propuestasRechazadas === 1) {
-                $mensajes[] = "Una propuesta fue rechaza y cambio su estado a 'Rechazada'";
-            } elseif ($propuestasRechazadas > 1) {
-                $mensajes[] = "Se rechazaron {$propuestasRechazadas} propuestas y cambiaron su estado a 'Rechazada'";
-            }
-            if($propuestasAcuerdoPago === 1) {
-                $mensajes[] = "Una propuesta cambio su estado a 'Acuerdo de Pago'";
-            } elseif ($propuestasAcuerdoPago > 1) {
-                $mensajes[] = "{$propuestasAcuerdoPago} propuestas cambiaron su estado a 'Acuerdo de Pago'";
-            }
-            if($acuerdosGenerados === 1) {
-                $mensajes[] = "Se generó un nuevo Acuerdo de Pago";
-            } elseif ($acuerdosGenerados > 1) {
-                $mensajes[] = "Se generaron {$acuerdosGenerados} nuevos Acuerdos de Pago";
-            }
-
-            DB::commit();
-            AcuerdoTemporal::truncate();
-            return redirect()->route('acuerdos')->with('message', implode('<br>', $mensajes));
-        } catch(\Exception $e) {
-                DB::rollBack();
-                $errorImportacion = 'Ocurrió un error inesperado. (' . $e->getMessage() . ')';
-                return back()->withErrors(['error' => $errorImportacion]);
-        }
-        return redirect()->route('acuerdos')->with('message', 'Acuerdos generados correctamente');
-    }
+    
 
     public function subirComprobante(Pago $pago)
     {

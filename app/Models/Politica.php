@@ -35,6 +35,6 @@ class Politica extends Model
 
     public function productoId()
     {
-        return $this->belongsTo(Producto::class, 'cliente_id');
+        return $this->belongsTo(Producto::class, 'producto_id');
     }
 }

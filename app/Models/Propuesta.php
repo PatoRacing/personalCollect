@@ -24,7 +24,7 @@ class Propuesta extends Model
         'observaciones',
         'cantidad_de_cuotas_tres',
         'monto_de_cuotas_tres',
-        'tipo_de_propuesta',//1- Cancelacion 2-Cuota fijas 3-Cuotas con dto 4-Cuota Variables
+        'tipo_de_propuesta',//1- Cancelacion 2-Cuota fijas  4-Cuota Variables
         'deudor_id',
         'fecha_pago_anticipo',
         'fecha_pago_cuota',

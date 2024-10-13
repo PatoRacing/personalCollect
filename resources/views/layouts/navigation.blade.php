@@ -1,5 +1,4 @@
 <!-- Page Heading -->
-
 <header class="bg-blue-800 shadow">
     <div class="max-w-7xl mx-auto py-2 px-4 sm:px-6 lg:px-8 flex justify-between">
         <h2 class="px-4  text-white text-sm">
@@ -27,9 +26,9 @@
                     </x-nav-link>
                     @auth
                         @if (auth()->user()->rol === 'Administrador')
-                            <x-nav-link :href="route('usuario')"
+                            <x-nav-link :href="route('usuarios')"
                                 :active="request()->
-                                routeIs('usuario')
+                                routeIs('usuarios')
                                 || request()->routeIs('register')">
                                 {{ __('Usuarios') }}
                             </x-nav-link>
@@ -42,7 +41,6 @@
                                 || request()->routeIs('importar.deudores')
                                 || request()->routeIs('importar.informacion')
                                 || request()->routeIs('importar.operaciones')
-                                || request()->routeIs('generar.operacion')
                                 ">
                                 {{ __('Clientes') }}
                             </x-nav-link>
@@ -57,24 +55,20 @@
                                 ">
                                 {{ __('Productos') }}
                             </x-nav-link>
-                            <x-nav-link :href="route('cartera')"
+                            <x-nav-link :href="route('operaciones')"
                                 :active="request()->
-                                routeIs('cartera')
+                                routeIs('operaciones')
+                                || request()->routeIs('generar.operacion')
+                                || request()->routeIs('asignar.operaciones')
                                 || request()->routeIs('deudor.perfil')
-                                || request()->routeIs('deudor.nueva.gestion')
-                                || request()->routeIs('deudor.historial')
-                                || request()->routeIs('deudor.actualizar.gestion')
-                                || request()->routeIs('deudor.nuevo.telefono')
-                                || request()->routeIs('deudor.actualizar.telefono')
-                                || request()->routeIs('propuesta')
-                                || request()->routeIs('historial.propuesta')
-                                || request()->routeIs('propuesta.incobrable')
+                                || request()->routeIs('nueva.gestion')
                                 ">
-                                {{ __('Cartera') }}
+                                {{ __('Operaciones') }}
                             </x-nav-link>
                             <x-nav-link :href="route('propuestas')"
                                 :active="request()->
                                 routeIs('propuestas')
+                                || request()->routeIs('propuesta.manual')
                                 ">
                                 {{ __('Propuestas') }}
                             </x-nav-link>
@@ -86,13 +80,6 @@
                                 ">
                                 {{ __('Acuerdos') }}
                             </x-nav-link>  
-                            <x-nav-link :href="route('pagos')"
-                                :active="request()->
-                                routeIs('pagos')
-                                || request()->routeIs('informar.pagos')
-                                ">
-                                {{ __('Pagos') }}
-                            </x-nav-link>
                         @else
                             <x-nav-link :href="route('cartera')"
                                 :active="request()->
@@ -110,6 +97,15 @@
                                 {{ __('Cartera') }}
                             </x-nav-link>
                         @endif
+                        <x-nav-link :href="route('cuotas')"
+                        :active="request()->
+                        routeIs('cuotas')
+                        || request()->routeIs('importar.pagos')
+                        || request()->routeIs('informar.pagos')
+                        || request()->routeIs('gestion.cuota')
+                        ">
+                        {{ __('Cuotas') }}
+                    </x-nav-link>
                     @endauth
                 </div>
             </div>

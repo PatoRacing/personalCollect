@@ -19,7 +19,7 @@ class BuscadorProductos extends Component
     public function render()
     {
         $clientes = Cliente::all();
-        return view('livewire.buscador-productos',[
+        return view('livewire.productos.buscador-productos',[
             'clientes'=>$clientes
         ]);
     }

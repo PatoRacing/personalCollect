@@ -229,13 +229,13 @@ class GenerarOperacion extends Component
             $mensajes[] = "Se creo creo una nueva operación";
         }
 
-        return redirect()->route('perfil.cliente', ['cliente' => $this->cliente_id])->with('message', implode('<br>', $mensajes));
+        return redirect()->route('operaciones')->with('message', implode('<br>', $mensajes));
     }
 
     public function render()
     {
 
-        return view('livewire.generar-operacion',[
+        return view('livewire.operaciones.generar-operacion',[
             'nombre'=> $this->nombre,
             'tipo_doc'=>$this->tipo_doc,
             'nro_doc'=>$this->nro_doc,

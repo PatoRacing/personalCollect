@@ -51,6 +51,6 @@ class ActualizarProducto extends Component
 
     public function render()
     {
-        return view('livewire.actualizar-producto');
+        return view('livewire.productos.actualizar-producto');
     }
 }

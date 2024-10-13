@@ -3,6 +3,8 @@
 namespace App\Exports;
 
 use App\Models\Pago;
+use App\Models\PagoInformado;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
@@ -17,19 +19,48 @@ class PagosExport implements FromCollection, WithHeadings, WithColumnWidths, Wit
     */
     public function collection()
     {
-        $pagosAplicados = Pago::where('estado', 3)->get();
+        $pagosAplicadosSinEnviar = Pago::where('estado', 3)->take(20)->get();
         $data = collect();
-        foreach($pagosAplicados as $pagoAplicado) {
-            $monto = $pagoAplicado->monto;
-            $montoBanco = $monto / (1 + ($pagoAplicado->acuerdo->propuesta->operacionId->productoId->honorarios / 100));
-            $montoHonorarios = $monto - $montoBanco;
+        foreach($pagosAplicadosSinEnviar as $pagoAplicadoSinEnviar) {
+            $informePago = PagoInformado::where('pago_id', $pagoAplicadoSinEnviar->id)->first();
+            //Info a exportar
+            if($pagoAplicadoSinEnviar->acuerdo->propuesta->deudorId->tipo_doc) {
+                $tipoDoc = $pagoAplicadoSinEnviar->acuerdo->propuesta->deudorId->tipo_doc;
+            } else {
+                $tipoDoc = '-';
+            }
+            $documento = $pagoAplicadoSinEnviar->acuerdo->propuesta->deudorId->nro_doc;
+            $titular = $pagoAplicadoSinEnviar->acuerdo->propuesta->deudorId->nombre;
+            $tipoOperacion = $pagoAplicadoSinEnviar->acuerdo->propuesta->operacionId->productoId->nombre;
+            $nroOperacion = $pagoAplicadoSinEnviar->acuerdo->propuesta->operacionId->operacion;
+            $fechaDePago = $informePago->fecha_de_pago;
+            $fechaFormateada = Carbon::parse($fechaDePago)->format('d-m-Y');
+            $fechaRendicion =  now()->format('d-m-Y');
+            $montoAbonado = $informePago->monto;
+            $montoARendir = $montoAbonado / (1 + ($pagoAplicadoSinEnviar->acuerdo->propuesta->operacionId->productoId->honorarios / 100));                
+            $cuota = $informePago->nro_cuota;
+            $proformaRendicion = '-';
+            $honorarios = $montoAbonado - $montoARendir;
+            $porcentajeHonorarios = $pagoAplicadoSinEnviar->acuerdo->propuesta->operacionId->productoId->honorarios;
+            $pagoId= $pagoAplicadoSinEnviar->id;
+            
             $data->push([
-                '$' . number_format($montoBanco, 2, ',', '.'),
-                '$' . number_format($montoHonorarios, 2, ',', '.'),
-                '$' . number_format($monto, 2, ',', '.')
+                $tipoDoc,
+                $documento,
+                $titular,
+                $tipoOperacion,
+                $nroOperacion,
+                $fechaFormateada,
+                $fechaRendicion,
+                '$' . number_format($montoARendir, 2, ',', '.'),
+                $cuota,
+                $proformaRendicion,
+                '$' . number_format($honorarios, 2, ',', '.'),
+                $porcentajeHonorarios . '%',
+                $pagoId
             ]);
-            $pagoAplicado->estado = 4;
-            $pagoAplicado->save();
+            $pagoAplicadoSinEnviar->estado = 4;
+            $pagoAplicadoSinEnviar->save();
         }
         return $data;
     }
@@ -37,16 +68,37 @@ class PagosExport implements FromCollection, WithHeadings, WithColumnWidths, Wit
     public function headings(): array
     {
         return [
-            'Monto Cliente',
-            'Monto Honorarios',
-            'Total'];
+            'Tipo Doc.',
+            'DNI',
+            'Titular',
+            'T. de Operación',
+            'Nro. Operación',
+            'Fecha de Pago',
+            'Fecha Rendición',
+            'Monto a Rendir',
+            'Cuota',
+            'Proforma y Rend. CG',
+            'Honorarios',
+            '% Honorarios',
+            'Pago Id',
+        ];
     }
     public function columnWidths(): array
     {
         return [
-            'A'=> 25, // $ cliente
-            'B'=> 25, // $ honorarios
-            'C'=> 25, // Total.
+            'A'=> 15, 
+            'B'=> 15, 
+            'C'=> 25, 
+            'D'=> 20, 
+            'E'=> 20, 
+            'F'=> 20, 
+            'G'=> 20, 
+            'H'=> 20, 
+            'I'=> 20, 
+            'J'=> 20, 
+            'K'=> 20, 
+            'L'=> 20, 
+            'M'=> 20, 
         ];
     }
 

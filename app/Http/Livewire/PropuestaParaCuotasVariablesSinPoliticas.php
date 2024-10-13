@@ -21,6 +21,7 @@ class PropuestaParaCuotasVariablesSinPoliticas extends Component
     public $monto_de_cuotas_uno;
     public $monto_de_cuotas_dos;
     public $monto_de_cuotas_tres;
+    public $monto_total;
     public $accion;
     public $observaciones;
     public $fecha_pago_anticipo;
@@ -42,7 +43,7 @@ class PropuestaParaCuotasVariablesSinPoliticas extends Component
 
     protected $rules = [
         'monto_ofrecido'=> 'required|numeric',
-        'anticipo'=> 'required|numeric|lt:monto_ofrecido',
+        'anticipo'=> 'required|numeric|lt:monto_ofrecido|regex:/^[0-9]{1,}(000)$/',
         'cantidad_de_cuotas_uno'=> 'required|numeric|integer',
         'cantidad_de_cuotas_dos'=> 'required|numeric|integer',
         'cantidad_de_cuotas_tres'=> 'required|numeric|integer',
@@ -81,19 +82,24 @@ class PropuestaParaCuotasVariablesSinPoliticas extends Component
         $montoSinAnticipo = $this->monto_ofrecido - $this->anticipo;
         //Calculo monto de cada cuota para el grupo 1
         $this->monto_grupo_uno = ($montoSinAnticipo *  $this->porcentaje_grupo_uno) / 100;
-        $this->monto_de_cuotas_uno = $this->monto_grupo_uno /  $this->cantidad_de_cuotas_uno;
+        $this->monto_de_cuotas_uno = ceil($this->monto_grupo_uno / $this->cantidad_de_cuotas_uno / 1000) * 1000;
+        
         //Calculo monto de cada cuota para el grupo 2
         $this->monto_grupo_dos = ($montoSinAnticipo *  $this->porcentaje_grupo_dos) / 100;
-        $this->monto_de_cuotas_dos = $this->monto_grupo_dos /  $this->cantidad_de_cuotas_dos;
+        $this->monto_de_cuotas_dos = ceil($this->monto_grupo_dos / $this->cantidad_de_cuotas_dos / 1000) * 1000;
         //Si existe, calculo monto de cada cuota para el grupo 3
         if($this->porcentaje_grupo_tres && $this->cantidad_de_cuotas_tres) {
             $this->monto_grupo_tres = ($montoSinAnticipo *  $this->porcentaje_grupo_tres) / 100;
-            $this->monto_de_cuotas_tres = $this->monto_grupo_tres /  $this->cantidad_de_cuotas_tres;
+            $this->monto_de_cuotas_tres = ceil($this->monto_grupo_tres / $this->cantidad_de_cuotas_tres / 1000) * 1000;
         } else {
             $this->monto_grupo_tres = null;
             $this->monto_de_cuotas_tres = null;
         }
-        $cantidadDeCuotas = $this->cantidad_de_cuotas_uno + $this->cantidad_de_cuotas_dos + $this->cantidad_de_cuotas_tres;
+        $this->monto_total = 
+            ($this->monto_de_cuotas_uno * $this->cantidad_de_cuotas_uno) +
+            ($this->monto_de_cuotas_dos * $this->cantidad_de_cuotas_dos) +
+            ($this->monto_de_cuotas_tres * $this->cantidad_de_cuotas_tres) + $this->anticipo;
+
         if($this->monto_ofrecido < $this->minimoAPagar)
         {
             //Monto no permitido y cuotas no permitidas
@@ -142,7 +148,7 @@ class PropuestaParaCuotasVariablesSinPoliticas extends Component
         $propuesta = new Propuesta();
         $propuesta->deudor_id = $this->operacion->deudor_id;
         $propuesta->operacion_id = $this->operacion->id;
-        $propuesta->monto_ofrecido = $this->monto_ofrecido;
+        $propuesta->monto_ofrecido = $this->monto_total;
         $propuesta->tipo_de_propuesta = 4;
         if($this->anticipo == 0 || $this->anticipo === '') {
             $propuesta->anticipo = null; 
@@ -176,7 +182,7 @@ class PropuestaParaCuotasVariablesSinPoliticas extends Component
         $propuesta->observaciones = $this->observaciones;
         $propuesta->usuario_ultima_modificacion_id = $this->usuario_ultima_modificacion_id;
         $propuesta->save();
-        return redirect()->route('propuesta', ['operacion' => $this->operacion->id])->with('message', 'Propuesta generada correctamente');
+        return redirect()->route('nueva.gestion', ['operacion' => $this->operacion->id])->with('message', 'Propuesta generada correctamente');
     }
 
     public function render()

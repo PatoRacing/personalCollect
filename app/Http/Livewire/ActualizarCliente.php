@@ -68,6 +68,6 @@ class ActualizarCliente extends Component
     
     public function render()
     {
-        return view('livewire.actualizar-cliente',);
+        return view('livewire.clientes.actualizar-cliente',);
     }
 }

@@ -39,14 +39,7 @@ class ClienteController extends Controller
      */
     public function index()
     {
-        $clientes = Cliente::orderBy('creado', 'desc')->paginate(12);
-        foreach ($clientes as $cliente) {
-            $cliente->creadoFormateado = Carbon::parse($cliente->creado)->format('d/m/Y');
-        }
-
-        return view('clientes.clientes', [
-            'clientes'=>$clientes
-        ]);
+        return view('clientes.clientes');
     }
 
     /**
@@ -81,17 +74,13 @@ class ClienteController extends Controller
         $totalCasos = $cliente->operaciones->count();
         $casosActivos = $cliente->operaciones->where('situacion', 1)->count();
         $totalDNI = $cliente->operaciones->unique('nro_doc')->count();
-        $deudaTotal = $cliente->operaciones->sum('deuda_capital');
         $deudaActiva = $cliente->operaciones->where('situacion', 1)->sum('deuda_capital');
-        $usuarios = User::all();
 
         return view('clientes.perfil-cliente', [
             'totalCasos'=>$totalCasos,
             'casosActivos'=>$casosActivos,
             'totalDNI'=>$totalDNI,
-            'deudaTotal'=>$deudaTotal,
             'deudaActiva'=>$deudaActiva,
-            'usuarios'=>$usuarios,
             'cliente'=>$cliente
         ]);
     }
@@ -132,24 +121,9 @@ class ClienteController extends Controller
         //
     }
 
-    public function generarOperacion()
-    {
-        $clientes = Cliente::all();
-
-        return view('clientes.generar-operacion', [
-            'clientes'=>$clientes
-        ]);
-    }
-
     public function importarDeudores()
     {
-        $usuarioId = auth()->id();
-        $usuario = User::where('id', $usuarioId)->first();
-        $nombreUsuario = $usuario->name . " " . $usuario->apellido;
-
-        return view('clientes.importar-deudores', [
-            'nombreUsuario'=>$nombreUsuario
-        ]);
+        return view('clientes.importar-deudores');
     }
 
     public function almacenarDeudores(HttpRequest $request)
@@ -158,8 +132,8 @@ class ClienteController extends Controller
             'importar'=> 'required|mimes:xls,xlsx|max:2048'
         ]);
 
-        //Se establece que el maximo de ejecución es de 10 minutos
-        ini_set('max_execution_time', 600);
+        //Se establece que el maximo de ejecución es de 20 minutos
+        ini_set('max_execution_time', 1200);
         $inicioImportacion = microtime(true);
         $excelImportacion = $request->file('importar');
 
@@ -204,7 +178,7 @@ class ClienteController extends Controller
             }
             $finNuevosRegistros = microtime(true);
             $duracionNuevosRegistros = $finNuevosRegistros - $incioNuevosRegistros;
-            $maximoNuevosRegistros = 940; //Maximo para la creacion de nuevos registros 940 segundos (9 minutos)
+            $maximoNuevosRegistros = 1140; //Maximo para la creacion de nuevos registros 940 segundos (9 minutos)
             if($duracionNuevosRegistros > $maximoNuevosRegistros) {
                 DB::rollBack();
                 return back()->withErrors(['error' => "Superaste el máximo de tiempo almacenar nuevos registros"]);
@@ -258,13 +232,7 @@ class ClienteController extends Controller
 
     public function importarInformacion()
     {
-        $usuarioId = auth()->id();
-        $usuario = User::where('id', $usuarioId)->first();
-        $nombreUsuario = $usuario->name . " " . $usuario->apellido;
-
-        return view('clientes.importar-informacion', [
-            'nombreUsuario'=>$nombreUsuario
-        ]);
+        return view('clientes.importar-informacion');
     }
 
     public function almacenarInformacion(HttpRequest $request)
@@ -272,8 +240,8 @@ class ClienteController extends Controller
         $request->validate([
             'importar'=> 'required|mimes:xls,xlsx|max:2048'
         ]);
-        //Se establece que el maximo de ejecución es de 10 minutos
-        ini_set('max_execution_time', 600);
+        //Se establece que el maximo de ejecución es de 20 minutos
+        ini_set('max_execution_time', 1200);
         $inicioImportacion = microtime(true);
         $excelImportacion = $request->file('importar');
 
@@ -441,7 +409,7 @@ class ClienteController extends Controller
             }
             $finNuevosRegistros = microtime(true);
             $duracionNuevosRegistros = $finNuevosRegistros - $incioNuevosRegistros;
-            $maximoNuevosRegistros = 940; //Maximo para la creacion de nuevos registros 940 segundos (9 minutos)
+            $maximoNuevosRegistros = 1140; //Maximo para la creacion de nuevos registros 940 segundos (9 minutos)
             if($duracionNuevosRegistros > $maximoNuevosRegistros) {
                 DB::rollBack();
                 return back()->withErrors(['error' => "Superaste el máximo de tiempo almacenar nuevos registros"]);

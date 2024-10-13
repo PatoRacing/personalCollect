@@ -15,6 +15,6 @@ class ModalImportarPagos extends Component
 
     public function render()
     {
-        return view('livewire.modal-importar-pagos');
+        return view('livewire.pagos.modal-importar-pagos');
     }
 }

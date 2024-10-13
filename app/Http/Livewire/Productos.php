@@ -6,57 +6,73 @@ use App\Models\Cliente;
 use App\Models\Politica;
 use App\Models\Producto;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class Productos extends Component
 {
+    use WithPagination;
+
     public $nombre;
     public $cliente_id;
+    public $modalEstado = false;
+    public $modalEliminar = false;
+    public $productoSeleccionado;
+    public $alertaMensaje;
+    public $alertaTipo;
     protected $listeners = ['terminosDeBusquedaProductos'=>'buscarProducto'];
-    public $productoId;
-    public $confirmaEliminacionProducto;
-    public $productoConPoliticas;
 
-    public function estadoProducto(Producto $producto)
+    //Función mostrar modal cambiar estado
+    public function mostrarModalEstado($productoId)
     {
-        if($producto->estado === 1)
+        $this->productoSeleccionado=Producto::find($productoId);
+        $this->modalEstado = true;
+    }
+
+    //Función cambiar estado
+    public function confirmarCambiarEstado()
+    {
+        if($this->productoSeleccionado->estado == 1)
         {
-            $producto->estado = 2;
-            $producto->usuario_ultima_modificacion_id =  auth()->id();
-
+            $this->productoSeleccionado->estado = 2;
         } else {
-            $producto->estado = 1;
-            $producto->usuario_ultima_modificacion_id =  auth()->id();
+            $this->productoSeleccionado->estado = 1;
         }
-        
-        $producto->save();
-        $this->emit('estadoActualizado');
+        $this->productoSeleccionado->usuario_ultima_modificacion_id = auth()->id();
+        $this->productoSeleccionado->save();
+        $this->modalEstado = false;
+        $this->alertaMensaje = 'Producto actualizado correctamente';
+        $this->alertaTipo = 'green';
     }
 
-    public function eliminarProducto($productoId)
+    //Funcion cerrar modal estado
+    public function cerrarModalEstado()
     {
-        $this->productoId = $productoId;
-        $politicas = Politica::where('producto_id', $productoId)->get();
-        if($politicas->isEmpty()) {
-            $this->confirmaEliminacionProducto = true;
-        } else {
-            $this->productoConPoliticas = true;
-        }
+        $this->modalEstado = false;
     }
 
-    public function confirmaEliminacionProducto()
+    //Función mostrar modal eliminar producto
+    public function mostrarModalEliminar($productoId)
     {
-        dd($this->productoId);
-        Producto::find($this->productoId)->delete();
-        $this->confirmaEliminacionProducto = false;
-        return redirect('productos')->with('message', 'Producto eliminado correctamente');
+        $this->productoSeleccionado=Producto::find($productoId);
+        $this->modalEliminar = true;
     }
 
-    public function cancelarEliminacionProducto()
+    //Función eliminar producto
+    public function confirmarEliminarUsuario()
     {
-        $this->confirmaEliminacionProducto = false;
-        $this->productoConPoliticas = false;
+        $this->productoSeleccionado->delete();
+        $this->modalEliminar = false;
+        $this->alertaMensaje = 'Producto eliminado correctamente';
+        $this->alertaTipo = 'red';
     }
 
+    //Funcion cerrar modal eliminar
+    public function cerrarModalEliminar()
+    {
+        $this->modalEliminar = false;
+    }
+
+    //Funcion para terminos de busqueda
     public function buscarProducto($nombre, $cliente_id)
     {
         $this->nombre = $nombre;
@@ -78,9 +94,9 @@ class Productos extends Component
 
         //Vista General
         })
-        ->orderBy('created_at', 'desc')->paginate(24);
+        ->orderBy('created_at', 'desc')->paginate(30);
 
-        return view('livewire.productos',[
+        return view('livewire.productos.productos',[
             'productos'=>$productos
         ]);
     }

@@ -14,6 +14,9 @@ class Acuerdo extends Model
         'usuario_ultima_modificacion_id',
         'propuesta_de_pago_pdf',
         'estado',
+        // 1- Vigente
+        // 2- Rendido
+        // 3- Rendido a cuenta
         'responsable'
     ];
 
@@ -27,7 +30,7 @@ class Acuerdo extends Model
         return $this->belongsTo(Propuesta::class, 'propuesta_id');
     }
 
-    public function responsable()
+    public function usuarioResponsable()
     {
         return $this->belongsTo(User::class, 'responsable');
     }

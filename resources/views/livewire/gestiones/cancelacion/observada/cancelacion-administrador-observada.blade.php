@@ -1,0 +1,3 @@
+<div>
+    cancelacion observada
+</div>

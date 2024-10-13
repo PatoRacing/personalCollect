@@ -15,6 +15,6 @@ class ImportarInformacion extends Component
 
     public function render()
     {
-        return view('livewire.importar-informacion');
+        return view('livewire.clientes.importar-informacion');
     }
 }

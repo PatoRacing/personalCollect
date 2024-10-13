@@ -12,6 +12,9 @@ class ImportacionTemporalPago extends Model
     protected $table = 'importaciones_temporales_pagos';
     protected $fillable = [
         'monto',
-        'cuil'
+        'cuil',
+        'cuenta',
+        'sucursal',
+        'fecha',
     ];
 }

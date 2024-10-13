@@ -187,9 +187,7 @@ class GenerarPolitica extends Component
     {
         $this->validate([
             'valor_quita'=> 'required',
-            'valor_cuota'=> 'required',
-            'valor_quita_descuento'=> 'required',
-            'valor_cuota_descuento'=> 'required'
+            'valor_cuota'=> 'required'
         ]);
         $this-> valoresQuitaCuota = false;
         $this-> resumen = true;
@@ -233,6 +231,6 @@ class GenerarPolitica extends Component
 
     public function render()
     {
-        return view('livewire.generar-politica');
+        return view('livewire.productos.generar-politica');
     }
 }

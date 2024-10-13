@@ -5,63 +5,40 @@ namespace App\Http\Livewire;
 use App\Models\Deudor;
 use App\Models\Operacion;
 use App\Models\Pago;
+use Carbon\Carbon;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class PagosVigentes extends Component
 {
-    public $pagoId;
-    public $pagoIdParaConfirmar;
-    public $nro_doc;
-    public $nro_operacion;
+    use WithPagination;
+
     public $deudor;
-    public $aplicarPago;
-    protected $listeners = ['busquedaPagosVigentes'=>'buscarPagoVigente'];
+    public $nro_doc;
+    public $responsable;
+    public $nro_operacion;
+    public $mes;
+    public $estado;
+    protected $listeners = ['busquedaPagosVigentes'=>'buscarPagoVigente', 'recargarPagina'=>'resetearPagina'];
 
-    public function aplicarPago($pagoId)
+    public function buscarPagoVigente($deudor, $nro_doc, $responsable, $nro_operacion, $mes, $estado)
     {
-        $this->aplicarPago = true;
-        $this->pagoIdParaConfirmar = $pagoId;
-    }
-
-    public function cancelarAplicarPago()
-    {
-        $this->aplicarPago = false;
-    }
-
-    public function confirmarAplicarPago($pagoIdParaConfirmar)
-    {
-        $pago = Pago::find($this->pagoIdParaConfirmar);
-        $pago->estado = 3;
-        $pago->save();
-        $this->aplicarPago = false;
-        return redirect()->route('pagos')->with('aplicado.message', 'Pago aplicado correctamente');
-    }
-
-    public function buscarPagoVigente($nro_doc, $nro_operacion, $deudor)
-    {
-        $this->nro_doc = $nro_doc;
-        $this->nro_operacion = $nro_operacion;
         $this->deudor = $deudor;
+        $this->nro_doc = $nro_doc;
+        $this->responsable = $responsable;
+        $this->nro_operacion = $nro_operacion;
+        $this->mes = $mes;
+        $this->estado = $estado;
+    }
+
+    public function resetearPagina()
+    {
+        $this->resetPage();
     }
 
     public function render()
     {
         $query = Pago::query();
-
-        // Busqueda por nro_doc
-        if ($this->nro_doc) {
-            $query->whereHas('acuerdo.propuesta.operacionId', function($subquery) {
-                $subquery->where('nro_doc', $this->nro_doc);
-            });
-        }
-
-        // Busqueda por nro operacion
-        if ($this->nro_operacion) {
-            $query->whereHas('acuerdo.propuesta.operacionId', function($subquery) {
-                $subquery->where('operacion', $this->nro_operacion);
-            });
-        }
-
         // Busqueda por deudor
         if ($this->deudor) {
             $deudorId = Deudor::where('nombre', 'LIKE', "%" . $this->deudor . "%")
@@ -73,12 +50,46 @@ class PagosVigentes extends Component
                 });
             }
         }
+        // Busqueda por nro_doc
+        if ($this->nro_doc) {
+            $query->whereHas('acuerdo.propuesta.operacionId', function($subquery) {
+                $subquery->where('nro_doc', $this->nro_doc);
+            });
+        }
+        //busqueda por responsable
+        if ($this->responsable) {
+            $query->whereHas('acuerdo.propuesta.operacionId', function($subquery) {
+                $subquery->where('usuario_asignado_id', $this->responsable);
+            });
+        }
+        // Busqueda por nro operacion
+        if ($this->nro_operacion) {
+            $query->whereHas('acuerdo.propuesta.operacionId', function($subquery) {
+                $subquery->where('operacion', $this->nro_operacion);
+            });
+        }
+        // Busqueda por mes
+        if ($this->mes) {
+            $query->whereMonth('vencimiento_cuota', $this->mes);
+        }
+        if ($this->estado) {
+            $hoy = Carbon::today();
+            if ($this->estado == 'activo') {
+                $query->where('vencimiento_cuota', '>=', $hoy);
+            } else if ($this->estado == 'vencido') {
+                $query->where('vencimiento_cuota', '<', $hoy);
+            }
+        }
         $query->where('estado', 1)
             ->orderBy('created_at', 'desc');
+
         $pagosVigentes = $query->paginate(30);
 
-        return view('livewire.pagos-vigentes', [
-            'pagosVigentes' => $pagosVigentes
+        $pagosVigentesTotales = $pagosVigentes->total();
+
+        return view('livewire.pagos.pagos-vigentes',[
+            'pagosVigentes'=>$pagosVigentes,
+            'pagosVigentesTotales'=>$pagosVigentesTotales,
         ]);
     }
 }

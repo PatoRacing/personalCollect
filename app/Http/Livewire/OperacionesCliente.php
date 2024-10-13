@@ -6,44 +6,52 @@ use App\Models\Deudor;
 use App\Models\Operacion;
 use App\Models\User;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class OperacionesCliente extends Component
 {
+    use WithPagination;
+    
+    public $cliente;
+    public $modalAsignar = false;
+    public $operacionSeleccionada;
+    public $usuarios;
+    public $usuario_asignado_id;
+    public $alertaMensaje;
+    public $alertaTipo;
     public $nro_doc;
     public $nro_operacion;
     public $deudor;
-    public $cliente;
     public $situacion;
     protected $listeners = ['terminosDeBusqueda'=>'buscarOperacion'];
-    public $operacionCliente;
-    public $asignarOperacion = false;
-    public $usuarios;
-    public $usuario_asignado_id;
-    
-    public function asignarOperacion($operacionClienteId)
+
+    public function mostrarModalAsignar($operacionClienteId)
     {
-        $this->asignarOperacion = true; 
-        $this->operacionCliente = Operacion::findOrFail($operacionClienteId); 
+        $this->operacionSeleccionada=Operacion::find($operacionClienteId);
+        $this->modalAsignar = true;
         $this->usuarios = User::all();
     }
 
-    public function guardarUsuarioAsignado()
+    public function asignarOperacion($operacionClienteId)
     {
         $this->validate([
             'usuario_asignado_id'=> 'required'
         ]);
-        
-        $operacionCliente = Operacion::findOrFail($this->operacionCliente->id);
+        $operacionCliente = Operacion::find($operacionClienteId);
         $operacionCliente->usuario_asignado_id = $this->usuario_asignado_id;
         $operacionCliente->usuario_ultima_modificacion_id = auth()->id();
         $operacionCliente->save();
-        $this->asignarOperacion = false; 
-        $this->emit('operacionAsignada');
+        $this->modalAsignar = false; 
+        $this->usuario_asignado_id = null; 
+        $this->alertaMensaje = 'Operación asignada correctamente';
+        $this->alertaTipo = 'green';
     }
 
-    public function cancelarAsignacion()
+    public function cerrarModalAsignar()
     {
-        $this->asignarOperacion = false; 
+        $this->modalAsignar = false; 
+        $this->usuario_asignado_id = null;
+        $this->resetErrorBag(); 
     }
 
     public function buscarOperacion($nro_doc, $nro_operacion, $deudor, $situacion)
@@ -53,7 +61,7 @@ class OperacionesCliente extends Component
         $this->deudor = $deudor;
         $this->situacion = $situacion;
     }
-    
+
     public function render()
     {
         //Busqueda por nro_doc
@@ -83,9 +91,8 @@ class OperacionesCliente extends Component
         })->where('cliente_id', $this->cliente->id)
         ->paginate(30);
 
-        return view('livewire.operaciones-cliente',[
-            'operacionesCliente'=>$operacionesCliente,
-            'usuarios'=>$this->usuarios
+        return view('livewire.clientes.operaciones-cliente',[
+            'operacionesCliente'=>$operacionesCliente
         ]);
     }
 }

@@ -7,102 +7,105 @@ use Livewire\Component;
 
 class ListadoPagos extends Component
 {
-    public $pagosVigentes = true;
-    public $pagosInformados;
+    public $pagosVigentes ;
+    public $pagosInformados = true;
     public $pagosAplicados;
-    public $pagosEnviados;
     public $pagosRendidos;
-    public $pagosIncumplidos;
+    public $pagosObservados;
+    public $alertaPagoInformado;
+    public $alertaPagoAplicado;
+    public $alertaPagoAplicadoEnviado;
+    
+    protected $listeners = ['pagoInformado', 'pagoAplicado', 'pagoAplicadoEnviado'=>'alertaPagoAplicadoEnviado'];
 
     public function mount()
     {
-        if (session()->has('message')) {
-            $this->pagosVigentes = false;
-            $this->pagosInformados = false;
-            $this->pagosAplicados = true; 
-            $this->pagosEnviados = false;
-            $this->pagosRendidos = false;
-            $this->pagosIncumplidos = false;
-        } elseif(session()->has('success.message')) {
+        if (session()->has('pagoInformado')) {
+            $this->alertaPagoInformado = true;
             $this->pagosVigentes = false;
             $this->pagosInformados = true;
-            $this->pagosAplicados = false; 
-            $this->pagosEnviados = false;
+            $this->pagosAplicados = false;
             $this->pagosRendidos = false;
-            $this->pagosIncumplidos = false;
-        } elseif(session()->has('aplicado.message')){
+            $this->pagosObservados = false;
+        } elseif (session()->has('pagoAplicado')) {
+            $this->alertaPagoAplicado = true;
             $this->pagosVigentes = false;
             $this->pagosInformados = false;
-            $this->pagosAplicados = true; 
-            $this->pagosEnviados = false;
+            $this->pagosAplicados = true;
             $this->pagosRendidos = false;
-            $this->pagosIncumplidos = false;
-        }
+            $this->pagosObservados = false;
+        } 
     }
 
-    public function pagosVigentesActivo()
+    public function alertaPagoAplicadoEnviado()
+    {
+        $this->alertaPagoAplicadoEnviado = true;
+    }
+
+    public function mostrarPagosVigentes()
     {
         $this->pagosVigentes = true;
         $this->pagosInformados = false;
         $this->pagosAplicados = false;
-        $this->pagosEnviados = false;
         $this->pagosRendidos = false;
-        $this->pagosIncumplidos = false;
+        $this->pagosObservados = false;
+        $this->alertaPagoInformado = false;
+        $this->alertaPagoAplicado = false;
+        $this->alertaPagoAplicadoEnviado = false;
     }
-    
-    public function pagosInformadosActivo()
+
+    public function mostrarPagosInformados()
     {
         $this->pagosVigentes = false;
         $this->pagosInformados = true;
         $this->pagosAplicados = false;
-        $this->pagosEnviados = false;
         $this->pagosRendidos = false;
-        $this->pagosIncumplidos = false;
+        $this->pagosObservados = false;
+        $this->alertaPagoInformado = false;
+        $this->alertaPagoAplicado = false;
+        $this->alertaPagoAplicadoEnviado = false;
     }
-    
-    public function pagosAplicadosActivo()
+
+    public function mostrarPagosObservados()
+    {
+        $this->pagosVigentes = false;
+        $this->pagosInformados = false;
+        $this->pagosAplicados = false;
+        $this->pagosRendidos = false;
+        $this->pagosObservados = true;
+        $this->alertaPagoInformado = false;
+        $this->alertaPagoAplicado = false;
+        $this->alertaPagoAplicadoEnviado = false;
+    }
+
+    public function mostrarPagosAplicados()
     {
         $this->pagosVigentes = false;
         $this->pagosInformados = false;
         $this->pagosAplicados = true;
-        $this->pagosEnviados = false;
         $this->pagosRendidos = false;
-        $this->pagosIncumplidos = false;
-    }
-    
-    public function pagosEnviadosActivo()
-    {
-        $this->pagosVigentes = false;
-        $this->pagosInformados = false;
-        $this->pagosAplicados = false;
-        $this->pagosEnviados = true;
-        $this->pagosRendidos = false;
-        $this->pagosIncumplidos = false;
+        $this->pagosObservados = false;
+        $this->alertaPagoInformado = false;
+        $this->alertaPagoAplicado = false;
+        $this->alertaPagoAplicadoEnviado = false;
     }
 
-    public function pagosRendidosActivo()
+    public function mostrarPagosRendidos()
     {
         $this->pagosVigentes = false;
         $this->pagosInformados = false;
         $this->pagosAplicados = false;
-        $this->pagosEnviados = false;
         $this->pagosRendidos = true;
-        $this->pagosIncumplidos = false;
+        $this->pagosObservados = false;
+        $this->alertaPagoInformado = false;
+        $this->alertaPagoAplicado = false;
+        $this->alertaPagoAplicadoEnviado = false;
     }
+
     
-    public function pagosIncumplidosActivo()
-    {
-        $this->pagosVigentes = false;
-        $this->pagosInformados = false;
-        $this->pagosAplicados = false;
-        $this->pagosEnviados = false;
-        $this->pagosRendidos = false;
-        $this->pagosIncumplidos = true;
-    }
 
     public function render()
     {
-
-        return view('livewire.listado-pagos');
+        return view('livewire.pagos.listado-pagos');
     }
 }

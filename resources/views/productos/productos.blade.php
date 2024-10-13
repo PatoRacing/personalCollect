@@ -3,18 +3,23 @@
 @endsection
 
 <x-app-layout>
-    <div class="container mx-auto ">
-        <div class="overflow-x-auto">
-            <div class="p-4 sticky left-0">
-                <h1 class="font-extrabold text-2xl bg-white p-4 text-gray-900 text-center mb-5">Productos</h1>
-                <a href="{{route('crear.producto')}}" class="text-white bg-blue-800 hover:bg-blue-900 px-5 py-3 rounded">+ Producto</a>
-                @if(session('message'))
-                    <div class="bg-green-100 border-l-4 border-green-600 text-green-800 font-bold mt-3 p-3 ">
-                        {{ session('message') }}
-                    </div>
-                @endif                
-            </div>
+    <!--titulo-->
+    <x-titulo>
+        Productos
+    </x-titulo>
+    <!--Contenedor principal-->
+    <div class="container mx-auto p-4">
+        <!--Boton principal-->
+        <x-btn-principal :href="route('crear.producto')" class="mr-1">
+            + Producto
+        </x-btn-principal>        
+        <!--Contenedor listado-->
+        <div class="container mx-auto border p-2 mt-4">
+            <x-subtitulo>
+                Listado de Productos
+            </x-subtitulo>
             <livewire:productos />
         </div>
     </div>
 </x-app-layout>
+

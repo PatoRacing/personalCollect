@@ -251,8 +251,6 @@ class ActualizarPolitica extends Component
         $this->validate([
             'valor_quita'=> 'required',
             'valor_cuota'=> 'required',
-            'valor_quita_descuento'=> 'required',
-            'valor_cuota_descuento'=> 'required'
         ]);
         $this-> valoresQuitaCuota = false;
         $this-> resumen = true;
@@ -309,6 +307,6 @@ class ActualizarPolitica extends Component
 
     public function render()
     {
-        return view('livewire.actualizar-politica');
+        return view('livewire.productos.actualizar-politica');
     }
 }

@@ -24,6 +24,7 @@ class PagoInformado extends Model
         'nombre_tercero',
         'central_de_pago',
         'comprobante',
+        'rendicion_cg',
         'usuario_ultima_modificacion_id',
     ];
 

@@ -15,8 +15,14 @@ class BuscadorOperaciones extends Component
     {
         $this->emit('terminosDeBusqueda', $this->nro_doc, $this->nro_operacion, $this->deudor, $this->situacion);
     }
+
+    public function recargarBusqueda()
+    {
+        $this->reset(['deudor', 'nro_doc', 'nro_operacion', 'situacion']);
+    }
+
     public function render()
     {
-        return view('livewire.buscador-operaciones');
+        return view('livewire.clientes.buscador-operaciones');
     }
 }

@@ -32,6 +32,12 @@ class PropuestasExport implements FromCollection, WithHeadings, WithColumnWidths
             } else {
                 $tipo_doc = "-";
             }
+            $segmento = '';
+            if($propuesta->operacionId->segmento) {
+                $segmento = $propuesta->operacionId->segmento;
+            } else {
+                $segmento = "-";
+            }
             $tipo_de_propuesta = "";
             if($propuesta->tipo_de_propuesta == 1) {
                 $tipo_de_propuesta = "Cancelación";
@@ -121,7 +127,7 @@ class PropuestasExport implements FromCollection, WithHeadings, WithColumnWidths
                 $propuesta->deudorId->nro_doc,
                 $propuesta->operacionId->operacion,
                 $propuesta->operacionId->productoId->nombre,
-                $propuesta->operacionId->segmento,
+                $segmento,
                 '$' . number_format($propuesta->operacionId->deuda_capital, 2, ',', '.'),
                 $tipo_de_propuesta,
                 $porcentaje_quita,
@@ -146,7 +152,7 @@ class PropuestasExport implements FromCollection, WithHeadings, WithColumnWidths
         DB::beginTransaction();
         try {
             foreach ($propuestas as $propuesta) {
-                $propuesta->estado = 'Enviado';
+                $propuesta->estado = 'Enviada';
                 $propuesta->save();
             }
             DB::commit();

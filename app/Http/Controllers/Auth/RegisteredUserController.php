@@ -60,6 +60,6 @@ class RegisteredUserController extends Controller
             ]);
         }
         event(new Registered($user));
-        return redirect('usuario')->with('message', 'Usuario agregado correctamente');
+        return redirect('usuarios')->with('message', 'Usuario agregado correctamente');
     }
 }

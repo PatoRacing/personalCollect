@@ -54,34 +54,7 @@ class DeudorController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show(Deudor $deudor)
-    {
-        $deudorId = $deudor->id;
-        $gestionesDeudor = GestionesDeudores::where('deudor_id', $deudorId)
-                                            ->latest('created_at')
-                                            ->paginate(1);
-        $ultimaGestion = GestionesDeudores::where('deudor_id', $deudorId)
-                                        ->latest('created_at')
-                                        ->first();
-        $telefonos = Telefono::where('deudor_id', $deudorId)
-                            ->orderBy('created_at', 'desc')
-                            ->get();   
-        $operaciones = Operacion::where('deudor_id', $deudorId)->get();
-        $ultimaPropuesta = Propuesta::where('deudor_id', $deudorId)
-                                    ->latest('created_at')
-                                    ->first();
-        
-                
-        return view('deudores.deudor-perfil', [
-            'deudor'=>$deudor,
-            'deudorId'=>$deudorId,
-            'gestionesDeudor'=>$gestionesDeudor,
-            'ultimaGestion'=>$ultimaGestion,
-            'telefonos'=>$telefonos,
-            'operaciones'=>$operaciones,
-            'ultimaPropuesta'=>$ultimaPropuesta
-        ]);
-    }
+    
 
     /**
      * Show the form for editing the specified resource.
@@ -180,7 +153,7 @@ class DeudorController extends Controller
         $telefonos = Telefono::where('deudor_id', $deudorId)
                             ->orderBy('created_at', 'desc')
                             ->get();
-        $ultimaPropuesta = Propuesta::where('deudor_id', $deudorId)
+        $ultimaPropuesta = Propuesta::where('operacion_id', $operacion->id)
                                     ->latest('created_at')
                                     ->first();
         

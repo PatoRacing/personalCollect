@@ -26,7 +26,7 @@ class PropuestaParaCancelacionSinPolitica extends Component
     public $propuesta;
     
     protected $rules = [
-        'monto_ofrecido'=> 'required|numeric',
+        'monto_ofrecido'=> 'required|numeric|regex:/^[0-9]{1,}(000)$/'
     ];
     
     public function calcularQuita()
@@ -85,14 +85,14 @@ class PropuestaParaCancelacionSinPolitica extends Component
         $propuesta->observaciones = $this->observaciones;
         $propuesta->usuario_ultima_modificacion_id = $this->usuario_ultima_modificacion_id;
         $propuesta->save();
-        return redirect()->route('propuesta', ['operacion' => $this->operacion->id])->with('message', 'Propuesta generada correctamente');
+        return redirect()->route('nueva.gestion', ['operacion' => $this->operacion->id])->with('message', 'Propuesta generada correctamente');
     }
 
     public function render()
     {
         $usuarios = User::all();
 
-        return view('livewire.propuesta-para-cancelacion-sin-politica',[
+        return view('livewire.operaciones.propuesta-para-cancelacion-sin-politica',[
             'monto_ofrecido'=>$this->monto_ofrecido,
             'porcentaje_quita'=>$this->porcentaje_quita,
             'usuarios'=>$usuarios
